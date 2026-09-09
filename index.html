@@ -70,6 +70,7 @@ header{
 
 /* ---------- Mapa ---------- */
 #mapa{position:fixed;inset:0;top:0;bottom:0;z-index:1;background:#0c1614}
+#mapa.respaldo .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.82) contrast(.92) saturate(.55)}
 .leaflet-container{background:#0c1614;font-family:'Archivo',sans-serif}
 .leaflet-control-attribution{background:rgba(16,30,27,.82)!important;color:var(--tenue)!important;font-size:9px!important}
 .leaflet-control-attribution a{color:var(--musgo)!important}
@@ -566,9 +567,31 @@ async function traerApi(){
 function iniciarMapa(){
   mapa=L.map('mapa',{zoomControl:false,attributionControl:true}).setView([4.7,-74.2],5.4);
   L.control.zoom({position:'bottomleft'}).addTo(mapa);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-    attribution:'&copy; OpenStreetMap &copy; CARTO',maxZoom:19
-  }).addTo(mapa);
+
+  // Base principal: Esri Dark Gray. Sin llave, sin cuota, ya viene en tono oscuro.
+  const base=L.tileLayer(
+    'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    {attribution:'Esri, HERE, Garmin, &copy; OpenStreetMap',maxZoom:16,maxNativeZoom:16}
+  ).addTo(mapa);
+
+  // Etiquetas de ciudades y vías, capa aparte del mismo servicio.
+  const rotulos=L.tileLayer(
+    'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+    {maxZoom:16,maxNativeZoom:16,opacity:.9}
+  ).addTo(mapa);
+
+  // Respaldo: si Esri no responde, se pasa a OpenStreetMap oscurecido por CSS.
+  let fallos=0,cambiado=false;
+  base.on('tileerror',()=>{
+    if(cambiado||++fallos<6) return;
+    cambiado=true;
+    mapa.removeLayer(base);mapa.removeLayer(rotulos);
+    document.getElementById('mapa').classList.add('respaldo');
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'&copy; OpenStreetMap',maxZoom:19
+    }).addTo(mapa);
+  });
+
   capaMarcadores=L.layerGroup().addTo(mapa);
 }
 
