@@ -1,7 +1,7 @@
 /* Alerta Campus Colombia — service worker
    Desarrollada por Vibras Positivas HM — Derechos de Autor Reservados */
 
-const CACHE = 'alerta-campus-v1';
+const CACHE = 'alerta-campus-v2';
 const BASE = [
   './',
   './index.html',
@@ -50,7 +50,7 @@ self.addEventListener('fetch', e => {
   }
 
   // Teselas del mapa: caché primero, con guardado progresivo
-  if (url.hostname.includes('basemaps.cartocdn.com')) {
+  if (url.hostname.includes('arcgisonline.com') || url.hostname.includes('tile.openstreetmap.org')) {
     e.respondWith(
       caches.match(req).then(hit => hit || fetch(req).then(r => {
         const copia = r.clone();
