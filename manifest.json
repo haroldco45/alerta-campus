@@ -1,0 +1,28 @@
+{
+  "name": "Alerta Campus Colombia",
+  "short_name": "Alerta Campus",
+  "description": "Mapa nacional de alteraciones del orden en campus universitarios de Colombia. Registro de hechos, nunca de personas.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#101E1B",
+  "theme_color": "#101E1B",
+  "lang": "es-CO",
+  "dir": "ltr",
+  "categories": ["education", "utilities", "navigation"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%23101E1B'/%3E%3Ccircle cx='256' cy='256' r='132' fill='none' stroke='%23E8A317' stroke-width='46'/%3E%3Ccircle cx='256' cy='256' r='36' fill='%23D6423B'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%23101E1B'/%3E%3Ccircle cx='256' cy='256' r='104' fill='none' stroke='%23E8A317' stroke-width='38'/%3E%3Ccircle cx='256' cy='256' r='28' fill='%23D6423B'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
