@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="es-CO">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+<title>Alerta Campus Colombia — Mapa nacional de alteraciones del orden universitario</title>
+<meta name="description" content="Mapa nacional para documentar bloqueos, vandalismo y alteraciones del orden en campus universitarios de Colombia. Registro de hechos, nunca de personas.">
+<meta name="theme-color" content="#101E1B">
+<meta name="author" content="Vibras Positivas HM">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Alerta Campus Colombia">
+<meta property="og:title" content="Alerta Campus Colombia">
+<meta property="og:description" content="Mapa nacional para documentar bloqueos, vandalismo y alteraciones del orden en campus universitarios. Registro de hechos, nunca de personas.">
+<meta property="og:url" content="https://haroldco45.github.io/alerta-campus/">
+<meta property="og:image" content="https://haroldco45.github.io/alerta-campus/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Mapa de Colombia con puntos de reportes universitarios">
+<meta property="og:locale" content="es_CO">
+
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23101E1B'/><circle cx='50' cy='50' r='26' fill='none' stroke='%23E8A317' stroke-width='9'/><circle cx='50' cy='50' r='7' fill='%23D6423B'/></svg>">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<style>
+:root{
+  --tinta:#101E1B;
+  --pizarra:#172B26;
+  --concreto:#1F3832;
+  --borde:#2C4B43;
+  --tiza:#EDE8DC;
+  --tenue:#93A79F;
+  --cinta:#E8A317;
+  --brasa:#D6423B;
+  --musgo:#4FA88B;
+  --nav-h:64px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Archivo',system-ui,sans-serif;
+  background:var(--tinta);color:var(--tiza);
+  overflow:hidden;-webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+
+/* ---------- Banda superior con cinta de precaución ---------- */
+header{
+  position:fixed;top:0;left:0;right:0;z-index:900;
+  background:var(--tinta);
+  padding:env(safe-area-inset-top) 16px 0;
+  border-bottom:1px solid var(--borde);
+}
+.marca{display:flex;align-items:baseline;gap:9px;padding:12px 0 11px}
+.marca h1{
+  font-size:1.06rem;font-weight:800;letter-spacing:-.028em;line-height:1;
+}
+.marca span{font-size:.7rem;font-weight:600;color:var(--cinta);letter-spacing:.02em}
+.cinta{
+  height:5px;
+  background:repeating-linear-gradient(115deg,var(--cinta) 0 13px,var(--tinta) 13px 26px);
+}
+
+/* ---------- Mapa ---------- */
+#mapa{position:fixed;inset:0;top:0;bottom:0;z-index:1;background:#0c1614}
+.leaflet-container{background:#0c1614;font-family:'Archivo',sans-serif}
+.leaflet-control-attribution{background:rgba(16,30,27,.82)!important;color:var(--tenue)!important;font-size:9px!important}
+.leaflet-control-attribution a{color:var(--musgo)!important}
+.leaflet-popup-content-wrapper{background:var(--pizarra);color:var(--tiza);border-radius:4px;border:1px solid var(--borde)}
+.leaflet-popup-tip{background:var(--pizarra)}
+.leaflet-popup-content{margin:12px 14px;font-size:.82rem;line-height:1.45}
+.leaflet-popup-close-button{color:var(--tenue)!important}
+.pop-t{font-weight:700;font-size:.9rem;display:block;margin-bottom:3px}
+.pop-m{color:var(--tenue);font-size:.72rem;display:block;margin-bottom:7px}
+.pop-g{display:inline-block;padding:2px 7px;border-radius:3px;font-size:.66rem;font-weight:700;margin-top:6px}
+
+/* ---------- Chips de filtro flotantes ---------- */
+.filtros{
+  position:fixed;z-index:800;left:0;right:0;
+  top:calc(env(safe-area-inset-top) + 60px);
+  display:flex;gap:7px;overflow-x:auto;padding:0 16px 4px;
+  scrollbar-width:none;
+}
+.filtros::-webkit-scrollbar{display:none}
+.chip{
+  flex:0 0 auto;background:rgba(23,43,38,.94);border:1px solid var(--borde);
+  color:var(--tiza);padding:7px 13px;border-radius:999px;
+  font-size:.76rem;font-weight:600;white-space:nowrap;
+  backdrop-filter:blur(6px);
+}
+.chip.on{background:var(--cinta);color:#22160a;border-color:var(--cinta)}
+
+/* ---------- Contador flotante ---------- */
+.contador{
+  position:fixed;z-index:800;right:14px;
+  bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px);
+  background:rgba(23,43,38,.94);border:1px solid var(--borde);
+  border-radius:5px;padding:9px 13px;text-align:right;backdrop-filter:blur(6px);
+}
+.contador b{display:block;font-size:1.5rem;font-weight:800;line-height:1;letter-spacing:-.04em}
+.contador small{font-size:.63rem;color:var(--tenue);font-weight:600}
+
+/* ---------- Paneles deslizables ---------- */
+.panel{
+  position:fixed;z-index:850;left:0;right:0;
+  top:calc(env(safe-area-inset-top) + 56px);
+  bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));
+  background:var(--tinta);overflow-y:auto;
+  transform:translateY(102%);transition:transform .26s cubic-bezier(.32,.72,0,1);
+  overscroll-behavior:contain;
+}
+.panel.abierto{transform:translateY(0)}
+@media (prefers-reduced-motion:reduce){.panel{transition:none}}
+.panel-in{padding:20px 16px 40px;max-width:660px;margin:0 auto}
+.panel h2{font-size:1.35rem;font-weight:800;letter-spacing:-.03em;margin-bottom:5px}
+.panel .sub{color:var(--tenue);font-size:.82rem;line-height:1.5;margin-bottom:22px;max-width:56ch}
+
+/* ---------- Formulario ---------- */
+label{display:block;font-size:.76rem;font-weight:600;color:var(--tenue);margin-bottom:6px}
+.campo{margin-bottom:17px}
+input,select,textarea{
+  width:100%;background:var(--pizarra);border:1px solid var(--borde);
+  border-radius:4px;padding:11px 12px;font-size:.9rem;
+}
+textarea{resize:vertical;min-height:92px;line-height:1.5}
+input:focus,select,textarea:focus,button:focus-visible{outline:2px solid var(--cinta);outline-offset:1px}
+select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2393A79F' stroke-width='1.6' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:11px;padding-right:32px}
+.fila{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+
+.opciones{display:flex;flex-wrap:wrap;gap:7px}
+.opt{
+  border:1px solid var(--borde);background:var(--pizarra);
+  padding:8px 13px;border-radius:4px;font-size:.8rem;font-weight:600;
+}
+.opt.on{background:var(--cinta);color:#22160a;border-color:var(--cinta)}
+.opt.g1.on{background:var(--musgo);border-color:var(--musgo);color:#08201a}
+.opt.g2.on{background:var(--cinta);border-color:var(--cinta);color:#22160a}
+.opt.g3.on{background:var(--brasa);border-color:var(--brasa);color:#fff}
+
+.gps{display:flex;gap:9px;align-items:center}
+.gps button{
+  background:var(--concreto);border:1px solid var(--borde);border-radius:4px;
+  padding:11px 14px;font-size:.8rem;font-weight:600;white-space:nowrap;
+}
+.coord{font-size:.72rem;color:var(--tenue);font-variant-numeric:tabular-nums}
+
+.enviar{
+  width:100%;background:var(--cinta);color:#22160a;font-weight:800;
+  padding:15px;border-radius:4px;font-size:.95rem;letter-spacing:-.01em;margin-top:6px;
+}
+.enviar:disabled{opacity:.45}
+.secundario{
+  width:100%;background:transparent;border:1px solid var(--borde);
+  color:var(--tiza);font-weight:600;padding:13px;border-radius:4px;font-size:.85rem;margin-top:9px;
+}
+
+/* ---------- Aviso de validación ---------- */
+.aviso{
+  border-left:3px solid var(--brasa);background:rgba(214,66,59,.11);
+  padding:12px 14px;border-radius:0 4px 4px 0;font-size:.8rem;line-height:1.5;margin-bottom:16px;
+}
+.aviso.ok{border-color:var(--musgo);background:rgba(79,168,139,.11)}
+.aviso b{display:block;margin-bottom:3px}
+
+/* ---------- Nota Habeas Data ---------- */
+.habeas{
+  border:1px solid var(--borde);border-radius:4px;padding:14px;
+  font-size:.75rem;line-height:1.55;color:var(--tenue);margin-bottom:22px;
+  background:linear-gradient(var(--pizarra),var(--pizarra)) padding-box;
+}
+.habeas strong{color:var(--tiza)}
+
+/* ---------- Cifras ---------- */
+.tarjetas{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:26px}
+.tarjeta{background:var(--pizarra);border:1px solid var(--borde);border-radius:4px;padding:13px 12px}
+.tarjeta b{display:block;font-size:1.55rem;font-weight:800;letter-spacing:-.045em;line-height:1.05}
+.tarjeta small{font-size:.66rem;color:var(--tenue);font-weight:600;line-height:1.3;display:block;margin-top:4px}
+.tarjeta.alta b{color:var(--brasa)}
+
+h3.seccion{font-size:.95rem;font-weight:700;margin:0 0 12px;letter-spacing:-.01em}
+.barra{margin-bottom:11px}
+.barra-t{display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:5px;gap:12px}
+.barra-t span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.barra-t b{font-variant-numeric:tabular-nums;font-weight:700}
+.barra-p{height:6px;background:var(--concreto);border-radius:3px;overflow:hidden}
+.barra-p i{display:block;height:100%;background:var(--cinta);border-radius:3px}
+
+/* ---------- Lista de reportes ---------- */
+.item{
+  border:1px solid var(--borde);border-radius:4px;padding:14px;margin-bottom:10px;
+  background:var(--pizarra);border-left-width:3px;
+}
+.item-h{display:flex;justify-content:space-between;gap:10px;margin-bottom:5px}
+.item-h b{font-size:.88rem;font-weight:700;line-height:1.3}
+.item-h time{font-size:.68rem;color:var(--tenue);white-space:nowrap;font-variant-numeric:tabular-nums}
+.item-m{font-size:.73rem;color:var(--tenue);margin-bottom:7px}
+.item p{font-size:.83rem;line-height:1.5}
+.item-a{display:flex;gap:8px;margin-top:11px}
+.item-a button{font-size:.72rem;font-weight:600;color:var(--tenue);border:1px solid var(--borde);padding:5px 10px;border-radius:3px}
+
+.vacio{text-align:center;padding:56px 20px;color:var(--tenue)}
+.vacio b{display:block;font-size:1rem;color:var(--tiza);margin-bottom:6px;font-weight:700}
+.vacio p{font-size:.83rem;line-height:1.5;max-width:34ch;margin:0 auto 18px}
+
+/* ---------- Navegación inferior ---------- */
+nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:900;
+  height:calc(var(--nav-h) + env(safe-area-inset-bottom));
+  padding-bottom:env(safe-area-inset-bottom);
+  background:var(--tinta);border-top:1px solid var(--borde);
+  display:grid;grid-template-columns:repeat(4,1fr);
+}
+nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--tenue);font-size:.65rem;font-weight:600}
+nav button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+nav button.on{color:var(--cinta)}
+
+/* ---------- Modal legal ---------- */
+.modal{position:fixed;inset:0;z-index:1000;background:rgba(10,18,16,.93);display:none;align-items:center;justify-content:center;padding:20px}
+.modal.ver{display:flex}
+.modal-c{background:var(--pizarra);border:1px solid var(--borde);border-radius:6px;max-width:460px;width:100%;max-height:88vh;overflow-y:auto}
+.modal-cinta{height:5px;background:repeating-linear-gradient(115deg,var(--cinta) 0 13px,var(--pizarra) 13px 26px)}
+.modal-b{padding:22px}
+.modal-b h2{font-size:1.2rem;font-weight:800;letter-spacing:-.03em;margin-bottom:12px}
+.modal-b p{font-size:.83rem;line-height:1.6;color:var(--tenue);margin-bottom:13px}
+.modal-b ul{list-style:none;margin-bottom:16px}
+.modal-b li{font-size:.81rem;line-height:1.5;padding-left:20px;position:relative;margin-bottom:9px;color:var(--tiza)}
+.modal-b li::before{content:'';position:absolute;left:0;top:7px;width:8px;height:8px;border-radius:2px;background:var(--cinta)}
+.modal-b li.no::before{background:var(--brasa)}
+
+footer{
+  text-align:center;font-size:.68rem;color:var(--tenue);
+  padding:26px 16px 10px;line-height:1.6;border-top:1px solid var(--borde);margin-top:30px;
+}
+footer b{color:var(--cinta);font-weight:600}
+
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%) translateY(20px);
+  bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 20px);z-index:1100;
+  background:var(--cinta);color:#22160a;padding:12px 20px;border-radius:4px;
+  font-size:.84rem;font-weight:700;opacity:0;pointer-events:none;transition:.2s;
+  max-width:88vw;text-align:center;
+}
+.toast.ver{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(min-width:720px){
+  .panel-in{padding:26px 24px 50px}
+  .tarjetas{grid-template-columns:repeat(3,1fr)}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="marca">
+    <h1>Alerta Campus</h1>
+    <span>Colombia</span>
+  </div>
+</header>
+<div class="cinta" style="position:fixed;top:calc(env(safe-area-inset-top) + 51px);left:0;right:0;z-index:901"></div>
+
+<div id="mapa"></div>
+
+<div class="filtros" id="filtros"></div>
+
+<div class="contador" id="contador"><b>0</b><small>reportes visibles</small></div>
+
+<!-- ================= REPORTAR ================= -->
+<section class="panel" id="p-reportar">
+  <div class="panel-in">
+    <h2>Registrar un hecho</h2>
+    <p class="sub">Describe qué pasó, dónde y cuándo. Nunca quién. Los campos se validan antes de guardar.</p>
+
+    <div class="campo">
+      <label for="uni">Universidad y sede</label>
+      <select id="uni"></select>
+    </div>
+
+    <div class="campo" id="c-manual" style="display:none">
+      <label>Ubicación manual</label>
+      <div class="fila">
+        <input id="uni-nombre" placeholder="Nombre de la universidad">
+        <input id="uni-ciudad" placeholder="Ciudad">
+      </div>
+    </div>
+
+    <div class="campo">
+      <label>Coordenadas del punto</label>
+      <div class="gps">
+        <button type="button" id="btn-gps">Usar mi GPS</button>
+        <span class="coord" id="coord">Se toma de la sede seleccionada</span>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label for="fecha">Fecha y hora del hecho (Colombia, UTC−5)</label>
+      <input type="datetime-local" id="fecha">
+    </div>
+
+    <div class="campo">
+      <label>Tipo de hecho</label>
+      <div class="opciones" id="tipos"></div>
+    </div>
+
+    <div class="campo">
+      <label>Gravedad</label>
+      <div class="opciones" id="gravedades"></div>
+    </div>
+
+    <div class="campo">
+      <label>Qué se vio afectado</label>
+      <div class="opciones" id="afectaciones"></div>
+    </div>
+
+    <div class="campo">
+      <label for="desc">Descripción de los hechos</label>
+      <textarea id="desc" maxlength="600" placeholder="Ej: Encapuchados bloquearon la portería sur desde las 10 a.m. Se lanzaron artefactos incendiarios contra la vía. Se suspendieron clases en el bloque 16."></textarea>
+      <div id="val"></div>
+    </div>
+
+    <div class="campo">
+      <label for="fuente">Origen de la información</label>
+      <select id="fuente">
+        <option>Testigo directo</option>
+        <option>Reporte de seguridad institucional</option>
+        <option>Comunicado oficial de la universidad</option>
+        <option>Medio de comunicación</option>
+        <option>Referencia de terceros</option>
+      </select>
+    </div>
+
+    <div class="habeas">
+      <strong>Tratamiento de datos — Ley 1581 de 2012.</strong> Este formulario registra hechos, no personas. No escribas nombres, apodos, cédulas, teléfonos, direcciones ni redes sociales de nadie. La opinión política es dato sensible y su registro sin autorización está prohibido. Los reportes son percepciones ciudadanas, no pruebas judiciales, y no sustituyen la denuncia ante la Fiscalía ni la línea 123. Los datos se guardan en este dispositivo.
+    </div>
+
+    <button class="enviar" id="btn-guardar">Guardar reporte</button>
+    <button class="secundario" id="btn-whatsapp">Guardar y compartir por WhatsApp</button>
+  </div>
+  <footer>Desarrollada por <b>Vibras Positivas HM</b> — Derechos de Autor Reservados</footer>
+</section>
+
+<!-- ================= CIFRAS ================= -->
+<section class="panel" id="p-cifras">
+  <div class="panel-in" id="cifras-in"></div>
+  <footer>Desarrollada por <b>Vibras Positivas HM</b> — Derechos de Autor Reservados</footer>
+</section>
+
+<!-- ================= DATOS ================= -->
+<section class="panel" id="p-datos">
+  <div class="panel-in">
+    <h2>Reportes registrados</h2>
+    <p class="sub">Lo que está guardado en este dispositivo más el consolidado nacional publicado en el repositorio.</p>
+    <div id="lista"></div>
+
+    <h3 class="seccion" style="margin-top:32px">Consolidación</h3>
+    <p class="sub" style="margin-bottom:14px">Exporta tus reportes para enviarlos a la coordinación nacional, o importa un archivo recibido de otra sede.</p>
+    <button class="secundario" id="btn-exportar" style="margin-top:0">Exportar mis reportes (JSON)</button>
+    <button class="secundario" id="btn-importar">Importar archivo JSON</button>
+    <input type="file" id="file" accept="application/json" hidden>
+
+    <h3 class="seccion" style="margin-top:32px">Servidor opcional</h3>
+    <p class="sub" style="margin-bottom:14px">Si tienes un backend propio, indícalo aquí. Vacío = la app funciona 100 % local y sin conexión.</p>
+    <div class="campo"><input id="api" placeholder="https://mi-servidor.com/api"></div>
+    <button class="secundario" id="btn-api" style="margin-top:0">Guardar servidor</button>
+
+    <h3 class="seccion" style="margin-top:32px">Instalar</h3>
+    <button class="secundario" id="btn-instalar" style="margin-top:0">Instalar en este dispositivo</button>
+    <button class="secundario" id="btn-legal">Ver reglas de uso</button>
+    <a class="secundario" href="./politica.html" style="display:block;text-align:center;text-decoration:none">Política de tratamiento de datos</a>
+  </div>
+  <footer>Desarrollada por <b>Vibras Positivas HM</b> — Derechos de Autor Reservados</footer>
+</section>
+
+<nav>
+  <button data-p="mapa" class="on"><svg viewBox="0 0 24 24"><path d="M9 4L3 7v13l6-3 6 3 6-3V4l-6 3-6-3z"/><path d="M9 4v13M15 7v13"/></svg>Mapa</button>
+  <button data-p="reportar"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Reportar</button>
+  <button data-p="cifras"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Cifras</button>
+  <button data-p="datos"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>Datos</button>
+</nav>
+
+<!-- ================= MODAL LEGAL ================= -->
+<div class="modal" id="modal">
+  <div class="modal-c">
+    <div class="modal-cinta"></div>
+    <div class="modal-b">
+      <h2>Antes de empezar</h2>
+      <p>Esta herramienta documenta <strong style="color:var(--tiza)">hechos que alteran el orden</strong> en campus universitarios de Colombia, para que las instituciones puedan ver patrones y tomar decisiones de seguridad.</p>
+      <ul>
+        <li>Sí: bloqueos, artefactos incendiarios, vandalismo, quema de vehículos, agresiones, daños a instalaciones.</li>
+        <li>Sí: fecha, hora, lugar y descripción de lo ocurrido.</li>
+        <li class="no">No: nombres, apodos, cédulas, teléfonos ni redes sociales de personas.</li>
+        <li class="no">No: fotografías de rostros ni señalamientos individuales.</li>
+        <li class="no">No: reportar manifestaciones pacíficas. La protesta es un derecho (Art. 37 C.N.).</li>
+      </ul>
+      <p>La opinión política es dato sensible bajo la Ley 1581 de 2012 y su registro sin autorización está prohibido. Imputar delitos a una persona determinada configura injuria o calumnia. Solo un juez establece responsabilidad penal.</p>
+      <p style="margin-bottom:18px"><a href="./politica.html" style="color:var(--musgo)">Leer la política de tratamiento de datos</a></p>
+      <button class="enviar" id="btn-acepto">Entiendo y acepto</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script>
+/* ============================================================
+   Alerta Campus Colombia
+   Desarrollada por Vibras Positivas HM — Derechos de Autor Reservados
+   ============================================================ */
+
+const CLAVE='alertacampus_v1', CLAVE_CFG='alertacampus_cfg_v1';
+
+/* ---------- Hora real Colombia (UTC−5), sin depender del dispositivo ---------- */
+function colombiaNow(){
+  const d=new Date();
+  return new Date(d.getTime()+d.getTimezoneOffset()*60000-5*3600000);
+}
+function isoCol(d){
+  const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}-05:00`;
+}
+function inputCol(d){
+  const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function fmt(iso){
+  const m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso);
+  if(!m) return iso;
+  const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${+m[3]} ${meses[+m[2]-1]} ${m[1]} · ${m[4]}:${m[5]}`;
+}
+
+/* ---------- Catálogos ---------- */
+const TIPOS={
+  bloqueo:'Bloqueo de accesos o vías',
+  incendiario:'Artefactos incendiarios',
+  vandalismo:'Vandalismo y daño a bienes',
+  quema:'Quema de vehículos',
+  clases:'Interrupción forzada de clases',
+  agresion:'Agresión a personas',
+  enfrentamiento:'Enfrentamiento con fuerza pública',
+  hurto:'Hurto dentro del campus',
+  intimidacion:'Intimidación o amenazas',
+  otro:'Otro hecho'
+};
+const AFECTACIONES=['Clases','Movilidad','Instalaciones','Transporte público','Comercio vecino','Personas lesionadas','Servicios del campus'];
+const GRAVEDAD={1:'Baja',2:'Media',3:'Alta'};
+const COLOR={1:'#4FA88B',2:'#E8A317',3:'#D6423B'};
+
+const SEDES=[
+{u:'Universidad Nacional de Colombia',s:'Sede Bogotá',c:'Bogotá D.C.',d:'Bogotá D.C.',lat:4.6381,lng:-74.0838},
+{u:'Universidad Nacional de Colombia',s:'Sede Medellín',c:'Medellín',d:'Antioquia',lat:6.2610,lng:-75.5776},
+{u:'Universidad Nacional de Colombia',s:'Sede Manizales',c:'Manizales',d:'Caldas',lat:5.0570,lng:-75.4900},
+{u:'Universidad Nacional de Colombia',s:'Sede Palmira',c:'Palmira',d:'Valle del Cauca',lat:3.5150,lng:-76.3080},
+{u:'Universidad de Antioquia',s:'Ciudad Universitaria',c:'Medellín',d:'Antioquia',lat:6.2673,lng:-75.5686},
+{u:'Universidad de Antioquia',s:'Seccional Bajo Cauca',c:'Caucasia',d:'Antioquia',lat:7.9870,lng:-75.1980},
+{u:'Universidad de Antioquia',s:'Seccional Urabá',c:'Turbo',d:'Antioquia',lat:8.0930,lng:-76.7280},
+{u:'Universidad de Antioquia',s:'Seccional Oriente',c:'Rionegro',d:'Antioquia',lat:6.1560,lng:-75.3730},
+{u:'Universidad del Valle',s:'Campus Meléndez',c:'Cali',d:'Valle del Cauca',lat:3.3760,lng:-76.5340},
+{u:'Universidad del Valle',s:'Sede San Fernando',c:'Cali',d:'Valle del Cauca',lat:3.4350,lng:-76.5420},
+{u:'Universidad Distrital Francisco José de Caldas',s:'Sede Macarena',c:'Bogotá D.C.',d:'Bogotá D.C.',lat:4.6280,lng:-74.0640},
+{u:'Universidad Distrital Francisco José de Caldas',s:'Facultad Tecnológica',c:'Bogotá D.C.',d:'Bogotá D.C.',lat:4.5780,lng:-74.1420},
+{u:'Universidad Pedagógica Nacional',s:'Sede Calle 72',c:'Bogotá D.C.',d:'Bogotá D.C.',lat:4.6390,lng:-74.0640},
+{u:'Universidad Pedagógica y Tecnológica de Colombia',s:'Sede Central',c:'Tunja',d:'Boyacá',lat:5.5540,lng:-73.3560},
+{u:'Universidad Pedagógica y Tecnológica de Colombia',s:'Seccional Sogamoso',c:'Sogamoso',d:'Boyacá',lat:5.7130,lng:-72.9270},
+{u:'Universidad Pedagógica y Tecnológica de Colombia',s:'Seccional Duitama',c:'Duitama',d:'Boyacá',lat:5.8200,lng:-73.0180},
+{u:'Universidad Industrial de Santander',s:'Sede Bucaramanga',c:'Bucaramanga',d:'Santander',lat:7.1400,lng:-73.1200},
+{u:'Universidad Industrial de Santander',s:'Sede Barbosa',c:'Barbosa',d:'Santander',lat:5.9310,lng:-73.6180},
+{u:'Universidad de Nariño',s:'Campus Torobajo',c:'Pasto',d:'Nariño',lat:1.2340,lng:-77.2830},
+{u:'Universidad del Cauca',s:'Sede Popayán',c:'Popayán',d:'Cauca',lat:2.4420,lng:-76.6060},
+{u:'Universidad del Atlántico',s:'Sede Norte',c:'Puerto Colombia',d:'Atlántico',lat:10.9930,lng:-74.9530},
+{u:'Universidad del Atlántico',s:'Sede Bellas Artes',c:'Barranquilla',d:'Atlántico',lat:10.9820,lng:-74.7960},
+{u:'Universidad de Córdoba',s:'Campus Montería',c:'Montería',d:'Córdoba',lat:8.7930,lng:-75.8590},
+{u:'Universidad de Córdoba',s:'Sede Lorica',c:'Lorica',d:'Córdoba',lat:9.2400,lng:-75.8140},
+{u:'Universidad de Sucre',s:'Sede Puerta Roja',c:'Sincelejo',d:'Sucre',lat:9.3080,lng:-75.3930},
+{u:'Universidad de Cartagena',s:'Campus Zaragocilla',c:'Cartagena',d:'Bolívar',lat:10.4030,lng:-75.5090},
+{u:'Universidad del Magdalena',s:'Sede Santa Marta',c:'Santa Marta',d:'Magdalena',lat:11.2210,lng:-74.1860},
+{u:'Universidad Popular del Cesar',s:'Sede Valledupar',c:'Valledupar',d:'Cesar',lat:10.4590,lng:-73.2510},
+{u:'Universidad de La Guajira',s:'Sede Riohacha',c:'Riohacha',d:'La Guajira',lat:11.5350,lng:-72.9070},
+{u:'Universidad Francisco de Paula Santander',s:'Sede Cúcuta',c:'Cúcuta',d:'Norte de Santander',lat:7.8990,lng:-72.4860},
+{u:'Universidad Francisco de Paula Santander',s:'Seccional Ocaña',c:'Ocaña',d:'Norte de Santander',lat:8.2470,lng:-73.3520},
+{u:'Universidad de Pamplona',s:'Campus Principal',c:'Pamplona',d:'Norte de Santander',lat:7.3760,lng:-72.6480},
+{u:'Universidad Tecnológica de Pereira',s:'Sede Pereira',c:'Pereira',d:'Risaralda',lat:4.7910,lng:-75.6900},
+{u:'Universidad de Caldas',s:'Sede Central',c:'Manizales',d:'Caldas',lat:5.0570,lng:-75.4920},
+{u:'Universidad del Quindío',s:'Sede Armenia',c:'Armenia',d:'Quindío',lat:4.5540,lng:-75.6600},
+{u:'Universidad del Tolima',s:'Sede Ibagué',c:'Ibagué',d:'Tolima',lat:4.4290,lng:-75.2000},
+{u:'Universidad Surcolombiana',s:'Sede Neiva',c:'Neiva',d:'Huila',lat:2.9350,lng:-75.2870},
+{u:'Universidad de los Llanos',s:'Campus Barcelona',c:'Villavicencio',d:'Meta',lat:4.0740,lng:-73.5850},
+{u:'Universidad de la Amazonia',s:'Sede Florencia',c:'Florencia',d:'Caquetá',lat:1.6140,lng:-75.6120},
+{u:'Universidad Tecnológica del Chocó',s:'Sede Quibdó',c:'Quibdó',d:'Chocó',lat:5.6940,lng:-76.6580},
+{u:'Universidad de Cundinamarca',s:'Sede Fusagasugá',c:'Fusagasugá',d:'Cundinamarca',lat:4.3390,lng:-74.3640},
+{u:'Universidad Colegio Mayor de Cundinamarca',s:'Sede Bogotá',c:'Bogotá D.C.',d:'Bogotá D.C.',lat:4.6000,lng:-74.0800},
+{u:'Universidad Militar Nueva Granada',s:'Campus Cajicá',c:'Cajicá',d:'Cundinamarca',lat:4.9480,lng:-74.0210},
+{u:'Universidad Pontificia Bolivariana',s:'Sede Medellín',c:'Medellín',d:'Antioquia',lat:6.2400,lng:-75.5900},
+{u:'Universidad EAFIT',s:'Sede Medellín',c:'Medellín',d:'Antioquia',lat:6.2000,lng:-75.5780},
+{u:'Instituto Tecnológico Metropolitano',s:'Campus Robledo',c:'Medellín',d:'Antioquia',lat:6.2760,lng:-75.5900},
+{u:'Politécnico Colombiano Jaime Isaza Cadavid',s:'Sede Poblado',c:'Medellín',d:'Antioquia',lat:6.2150,lng:-75.5720},
+{u:'Pontificia Universidad Javeriana',s:'Sede Bogotá',c:'Bogotá D.C.',d:'Bogotá D.C.',lat:4.6280,lng:-74.0650},
+{u:'Universidad de los Andes',s:'Sede Bogotá',c:'Bogotá D.C.',d:'Bogotá D.C.',lat:4.6020,lng:-74.0650},
+{u:'Universidad Externado de Colombia',s:'Sede Bogotá',c:'Bogotá D.C.',d:'Bogotá D.C.',lat:4.5960,lng:-74.0710},
+{u:'Universidad Santiago de Cali',s:'Campus Pampalinda',c:'Cali',d:'Valle del Cauca',lat:3.4030,lng:-76.5410},
+{u:'Universidad del Norte',s:'Sede Barranquilla',c:'Barranquilla',d:'Atlántico',lat:11.0190,lng:-74.8500},
+{u:'Universidad Autónoma de Bucaramanga',s:'Campus El Jardín',c:'Bucaramanga',d:'Santander',lat:7.1180,lng:-73.1080},
+{u:'Universidad de Antioquia',s:'Seccional Suroeste',c:'Andes',d:'Antioquia',lat:5.6570,lng:-75.8790},
+{u:'Universidad de Antioquia',s:'Seccional Magdalena Medio',c:'Puerto Berrío',d:'Antioquia',lat:6.4880,lng:-74.4050},
+{u:'Universidad Nacional Abierta y a Distancia',s:'Sede Nacional José Celestino Mutis',c:'Bogotá D.C.',d:'Bogotá D.C.',lat:4.6510,lng:-74.0980},
+{u:'Universidad del Pacífico',s:'Sede Buenaventura',c:'Buenaventura',d:'Valle del Cauca',lat:3.8850,lng:-77.0300},
+{u:'Universidad de la Guajira',s:'Extensión Maicao',c:'Maicao',d:'La Guajira',lat:11.3800,lng:-72.2390},
+{u:'Universidad de Antioquia',s:'Seccional Occidente',c:'Santa Fe de Antioquia',d:'Antioquia',lat:6.5570,lng:-75.8280},
+{u:'Universidad del Sinú',s:'Sede Montería',c:'Montería',d:'Córdoba',lat:8.7620,lng:-75.8850},
+{u:'Corporación Universitaria del Caribe',s:'Sede Sincelejo',c:'Sincelejo',d:'Sucre',lat:9.2970,lng:-75.3800},
+{u:'Universidad de San Buenaventura',s:'Sede Cartagena',c:'Cartagena',d:'Bolívar',lat:10.3860,lng:-75.4800},
+{u:'Universidad Libre',s:'Sede Bogotá',c:'Bogotá D.C.',d:'Bogotá D.C.',lat:4.6660,lng:-74.0710}
+];
+
+/* ---------- Estado ---------- */
+let datos=[], cfg={api:'',aceptado:false};
+let filtro={grav:0,tipo:'',depto:''};
+let capa='marcadores';
+let sel={tipo:'bloqueo',grav:2,afect:new Set(),lat:null,lng:null};
+let mapa,capaMarcadores,capaCalor,deferredPrompt=null;
+
+/* ---------- Persistencia ---------- */
+function cargar(){
+  try{datos=JSON.parse(localStorage.getItem(CLAVE))||[]}catch(e){datos=[]}
+  try{cfg={...cfg,...(JSON.parse(localStorage.getItem(CLAVE_CFG))||{})}}catch(e){}
+}
+function guardar(){
+  try{localStorage.setItem(CLAVE,JSON.stringify(datos.filter(r=>r.origen==='local')))}
+  catch(e){toast('No se pudo guardar. Memoria del navegador llena.')}
+}
+function guardarCfg(){localStorage.setItem(CLAVE_CFG,JSON.stringify(cfg))}
+
+/* ---------- Consolidado nacional (repositorio) ---------- */
+async function traerNacional(){
+  try{
+    const r=await fetch('./datos/reportes.json',{cache:'no-cache'});
+    if(!r.ok) return;
+    const j=await r.json();
+    if(!Array.isArray(j)) return;
+    const ids=new Set(datos.map(x=>x.id));
+    j.forEach(x=>{if(x&&x.id&&!ids.has(x.id)){x.origen='nacional';datos.push(x)}});
+    pintar();
+  }catch(e){/* sin consolidado publicado */}
+}
+async function traerApi(){
+  if(!cfg.api) return;
+  try{
+    const r=await fetch(cfg.api.replace(/\/$/,'')+'/reportes');
+    const j=await r.json();
+    if(!Array.isArray(j)) return;
+    const ids=new Set(datos.map(x=>x.id));
+    j.forEach(x=>{if(x&&x.id&&!ids.has(x.id)){x.origen='servidor';datos.push(x)}});
+    pintar();
+  }catch(e){}
+}
+
+/* ---------- Mapa ---------- */
+function iniciarMapa(){
+  mapa=L.map('mapa',{zoomControl:false,attributionControl:true}).setView([4.7,-74.2],5.4);
+  L.control.zoom({position:'bottomleft'}).addTo(mapa);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    attribution:'&copy; OpenStreetMap &copy; CARTO',maxZoom:19
+  }).addTo(mapa);
+  capaMarcadores=L.layerGroup().addTo(mapa);
+}
+
+function visibles(){
+  return datos.filter(r=>{
+    if(filtro.grav&&r.gravedad!==filtro.grav) return false;
+    if(filtro.tipo&&r.tipo!==filtro.tipo) return false;
+    if(filtro.depto&&r.departamento!==filtro.depto) return false;
+    return true;
+  });
+}
+
+function pintar(){
+  const v=visibles();
+  capaMarcadores.clearLayers();
+  if(capaCalor){mapa.removeLayer(capaCalor);capaCalor=null}
+
+  if(capa==='calor'){
+    if(v.length){
+      capaCalor=L.heatLayer(v.map(r=>[r.lat,r.lng,r.gravedad/3]),{
+        radius:26,blur:20,maxZoom:12,minOpacity:.35,
+        gradient:{0.2:'#4FA88B',0.5:'#E8A317',0.85:'#D6423B'}
+      }).addTo(mapa);
+    }
+  }else{
+    v.forEach(r=>{
+      L.circleMarker([r.lat,r.lng],{
+        radius:5+r.gravedad*2.6,color:COLOR[r.gravedad],weight:2,
+        fillColor:COLOR[r.gravedad],fillOpacity:.32
+      }).bindPopup(
+        `<span class="pop-t">${esc(r.universidad)}</span>`+
+        `<span class="pop-m">${esc(r.sede||'')}${r.ciudad?' · '+esc(r.ciudad):''} · ${fmt(r.fecha)}</span>`+
+        `${esc(r.descripcion||'')}`+
+        `<span class="pop-g" style="background:${COLOR[r.gravedad]};color:#12211E">${TIPOS[r.tipo]||'Hecho'} · ${GRAVEDAD[r.gravedad]}</span>`
+      ).addTo(capaMarcadores);
+    });
+  }
+  document.querySelector('#contador b').textContent=v.length;
+  document.querySelector('#contador small').textContent=v.length===1?'reporte visible':'reportes visibles';
+  pintarCifras();
+  pintarLista();
+}
+
+function esc(s){return String(s??'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]))}
+
+/* ---------- Filtros ---------- */
+function pintarFiltros(){
+  const cont=document.getElementById('filtros');
+  const deptos=[...new Set(SEDES.map(s=>s.d))].sort();
+  cont.innerHTML='';
+  const chip=(txt,activo,fn)=>{
+    const b=document.createElement('button');
+    b.className='chip'+(activo?' on':'');b.textContent=txt;b.onclick=fn;cont.appendChild(b);
+  };
+  chip(capa==='calor'?'Ver puntos':'Ver mapa de calor',capa==='calor',()=>{capa=capa==='calor'?'marcadores':'calor';pintarFiltros();pintar()});
+  chip('Todas',!filtro.grav&&!filtro.tipo&&!filtro.depto,()=>{filtro={grav:0,tipo:'',depto:''};pintarFiltros();pintar()});
+  [3,2,1].forEach(g=>chip('Gravedad '+GRAVEDAD[g],filtro.grav===g,()=>{filtro.grav=filtro.grav===g?0:g;pintarFiltros();pintar()}));
+  Object.entries(TIPOS).forEach(([k,v])=>chip(v,filtro.tipo===k,()=>{filtro.tipo=filtro.tipo===k?'':k;pintarFiltros();pintar()}));
+  deptos.forEach(d=>chip(d,filtro.depto===d,()=>{filtro.depto=filtro.depto===d?'':d;pintarFiltros();pintar()}));
+}
+
+/* ---------- Cifras ---------- */
+function pintarCifras(){
+  const v=visibles(), c=document.getElementById('cifras-in');
+  const alta=v.filter(r=>r.gravedad===3).length;
+  const sedes=new Set(v.map(r=>r.universidad+' — '+r.sede)).size;
+
+  const rank=(arr,fn)=>{
+    const m={};arr.forEach(r=>{const k=fn(r);m[k]=(m[k]||0)+1});
+    return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  };
+  const barras=(items,max)=>items.slice(0,7).map(([k,n])=>
+    `<div class="barra"><div class="barra-t"><span>${esc(k)}</span><b>${n}</b></div>
+     <div class="barra-p"><i style="width:${Math.round(n/max*100)}%"></i></div></div>`).join('');
+
+  const porUni=rank(v,r=>r.universidad);
+  const porTipo=rank(v,r=>TIPOS[r.tipo]||'Otro');
+  const porMes=rank(v,r=>String(r.fecha).slice(0,7)).sort((a,b)=>a[0]<b[0]?-1:1);
+
+  c.innerHTML=`
+    <h2>Panorama nacional</h2>
+    <p class="sub">Cifras de los reportes visibles con los filtros activos. Actualizado ${fmt(isoCol(colombiaNow()))}.</p>
+    <div class="tarjetas">
+      <div class="tarjeta"><b>${v.length}</b><small>Hechos registrados</small></div>
+      <div class="tarjeta alta"><b>${alta}</b><small>De gravedad alta</small></div>
+      <div class="tarjeta"><b>${sedes}</b><small>Sedes afectadas</small></div>
+    </div>
+    ${v.length?`
+      <h3 class="seccion">Universidades con más reportes</h3>
+      ${barras(porUni,porUni[0][1])}
+      <h3 class="seccion" style="margin-top:26px">Tipo de hecho</h3>
+      ${barras(porTipo,porTipo[0][1])}
+      <h3 class="seccion" style="margin-top:26px">Evolución mensual</h3>
+      ${barras(porMes.map(([k,n])=>[k,n]),Math.max(...porMes.map(x=>x[1])))}
+    `:`<div class="vacio"><b>Todavía no hay datos</b><p>Cuando se registren hechos aparecerán aquí los patrones por sede, tipo y mes.</p></div>`}
+  `;
+}
+
+/* ---------- Lista ---------- */
+function pintarLista(){
+  const v=visibles().slice().sort((a,b)=>a.fecha<b.fecha?1:-1);
+  const l=document.getElementById('lista');
+  if(!v.length){
+    l.innerHTML=`<div class="vacio"><b>Sin reportes aún</b><p>Registra el primer hecho desde la pestaña Reportar.</p></div>`;
+    return;
+  }
+  l.innerHTML=v.map(r=>`
+    <div class="item" style="border-left-color:${COLOR[r.gravedad]}">
+      <div class="item-h"><b>${esc(r.universidad)}</b><time>${fmt(r.fecha)}</time></div>
+      <div class="item-m">${esc(r.sede||'')}${r.ciudad?' · '+esc(r.ciudad):''} · ${TIPOS[r.tipo]||'Hecho'} · ${GRAVEDAD[r.gravedad]}</div>
+      <p>${esc(r.descripcion||'')}</p>
+      <div class="item-a">
+        <button onclick="irA(${r.lat},${r.lng})">Ver en el mapa</button>
+        ${r.origen==='local'?`<button onclick="borrar('${r.id}')">Eliminar</button>`:'<button disabled style="opacity:.5">Consolidado</button>'}
+      </div>
+    </div>`).join('');
+}
+function irA(lat,lng){abrir('mapa');mapa.setView([lat,lng],15)}
+function borrar(id){
+  if(!confirm('¿Eliminar este reporte de tu dispositivo?')) return;
+  datos=datos.filter(r=>r.id!==id);guardar();pintar();toast('Reporte eliminado');
+}
+
+/* ---------- Validador Habeas Data ---------- */
+function validar(txt){
+  const errores=[],avisos=[];
+  if(/\b\d{7,11}\b/.test(txt)) errores.push('Hay un número largo que parece una cédula o un teléfono.');
+  if(/@[A-Za-z0-9_.]{3,}/.test(txt)) errores.push('Hay un usuario de red social o un correo.');
+  if(/(instagram|facebook|tiktok|twitter|x\.com|wa\.me)\b/i.test(txt)) errores.push('Hay un enlace a un perfil de red social.');
+  if(/\b(se llama|apodad[oa]|alias|es el hijo de|es la hija de|de nombre|apellida)\b/i.test(txt)) errores.push('Hay una expresión que identifica a una persona.');
+  if(/\b(cédula|cedula|documento n|c\.c\.)\b/i.test(txt)) errores.push('No incluyas números de documento.');
+  const propios=txt.match(/\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,}\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,}\b/g)||[];
+  const blanca=/universidad|nacional|antioquia|colombia|valle|bogotá|medellín|cali|bloque|facultad|ciudad|sede|calle|carrera|avenida|policía|esmad|campus|portería|norte|sur|santander|caldas|cauca|córdoba|atlántico|magdalena|tolima|huila|meta|nariño|distrital|pedagógica|industrial|tecnológica|libre|javeriana|andes|externado|militar|pontificia|bolivariana|mayor|sinú|pacífico|guajira|cesar|sucre|bolívar|quindío|risaralda|boyacá|caquetá|chocó|cundinamarca/i;
+  if(propios.some(p=>!blanca.test(p))) avisos.push('Parece haber un nombre propio de persona. Revísalo: describe el hecho, no a quién lo hizo.');
+  return {errores,avisos};
+}
+function pintarValidacion(){
+  const t=document.getElementById('desc').value.trim(), c=document.getElementById('val');
+  if(!t){c.innerHTML='';return true}
+  const {errores,avisos}=validar(t);
+  if(errores.length){
+    c.innerHTML=`<div class="aviso" style="margin:10px 0 0"><b>No se puede guardar así</b>${errores.map(e=>'· '+e).join('<br>')}</div>`;
+    return false;
+  }
+  if(avisos.length){
+    c.innerHTML=`<div class="aviso" style="margin:10px 0 0;border-color:var(--cinta);background:rgba(232,163,23,.11)"><b>Revisa antes de guardar</b>${avisos.join('<br>')}</div>`;
+    return true;
+  }
+  c.innerHTML=`<div class="aviso ok" style="margin:10px 0 0">La descripción no contiene datos personales.</div>`;
+  return true;
+}
+
+/* ---------- Formulario ---------- */
+function pintarFormulario(){
+  const u=document.getElementById('uni');
+  u.innerHTML=SEDES.map((s,i)=>`<option value="${i}">${s.u} — ${s.s} (${s.c})</option>`).join('')+
+    '<option value="manual">Otra universidad / ubicación manual</option>';
+  u.onchange=()=>{
+    document.getElementById('c-manual').style.display=u.value==='manual'?'block':'none';
+    if(u.value!=='manual'){sel.lat=null;sel.lng=null;document.getElementById('coord').textContent='Se toma de la sede seleccionada'}
+  };
+
+  const tp=document.getElementById('tipos');
+  tp.innerHTML=Object.entries(TIPOS).map(([k,v])=>`<button type="button" class="opt${k===sel.tipo?' on':''}" data-t="${k}">${v}</button>`).join('');
+  tp.onclick=e=>{const b=e.target.closest('[data-t]');if(!b)return;sel.tipo=b.dataset.t;
+    tp.querySelectorAll('.opt').forEach(x=>x.classList.toggle('on',x===b))};
+
+  const gr=document.getElementById('gravedades');
+  gr.innerHTML=[1,2,3].map(g=>`<button type="button" class="opt g${g}${g===sel.grav?' on':''}" data-g="${g}">${GRAVEDAD[g]}</button>`).join('');
+  gr.onclick=e=>{const b=e.target.closest('[data-g]');if(!b)return;sel.grav=+b.dataset.g;
+    gr.querySelectorAll('.opt').forEach(x=>x.classList.toggle('on',x===b))};
+
+  const af=document.getElementById('afectaciones');
+  af.innerHTML=AFECTACIONES.map(a=>`<button type="button" class="opt" data-a="${a}">${a}</button>`).join('');
+  af.onclick=e=>{const b=e.target.closest('[data-a]');if(!b)return;
+    const a=b.dataset.a;sel.afect.has(a)?sel.afect.delete(a):sel.afect.add(a);
+    b.classList.toggle('on',sel.afect.has(a))};
+
+  document.getElementById('fecha').value=inputCol(colombiaNow());
+  document.getElementById('desc').addEventListener('input',pintarValidacion);
+
+  document.getElementById('btn-gps').onclick=()=>{
+    if(!navigator.geolocation){toast('Este dispositivo no tiene GPS disponible');return}
+    document.getElementById('coord').textContent='Buscando señal…';
+    navigator.geolocation.getCurrentPosition(p=>{
+      sel.lat=+p.coords.latitude.toFixed(6);sel.lng=+p.coords.longitude.toFixed(6);
+      document.getElementById('coord').textContent=`${sel.lat}, ${sel.lng} (±${Math.round(p.coords.accuracy)} m)`;
+    },()=>{document.getElementById('coord').textContent='No se pudo obtener la ubicación. Se usará la sede.'},
+    {enableHighAccuracy:true,timeout:12000});
+  };
+}
+
+function construir(){
+  const u=document.getElementById('uni');
+  const desc=document.getElementById('desc').value.trim();
+  const fecha=document.getElementById('fecha').value;
+  if(!desc){toast('Escribe qué ocurrió');return null}
+  if(desc.length<25){toast('La descripción es muy corta. Detalla qué pasó.');return null}
+  if(!fecha){toast('Indica la fecha y hora del hecho');return null}
+  if(!pintarValidacion()){toast('Quita los datos personales antes de guardar');return null}
+
+  let uni,sede,ciudad,depto,lat,lng;
+  if(u.value==='manual'){
+    uni=document.getElementById('uni-nombre').value.trim();
+    ciudad=document.getElementById('uni-ciudad').value.trim();
+    if(!uni||!ciudad){toast('Escribe el nombre de la universidad y la ciudad');return null}
+    if(sel.lat===null){toast('Toma el GPS: la ubicación manual necesita coordenadas');return null}
+    sede='Sede reportada manualmente';depto='';lat=sel.lat;lng=sel.lng;
+  }else{
+    const s=SEDES[+u.value];
+    uni=s.u;sede=s.s;ciudad=s.c;depto=s.d;
+    lat=sel.lat??s.lat;lng=sel.lng??s.lng;
+  }
+  return {
+    id:'AC-'+Date.now()+'-'+Math.floor(Math.random()*9000+1000),
+    fecha:fecha+':00-05:00',
+    universidad:uni,sede,ciudad,departamento:depto,
+    lat,lng,tipo:sel.tipo,gravedad:sel.grav,
+    afectacion:[...sel.afect],descripcion:desc,
+    fuente:document.getElementById('fuente').value,
+    creado:isoCol(colombiaNow()),origen:'local'
+  };
+}
+
+function limpiar(){
+  document.getElementById('desc').value='';
+  document.getElementById('val').innerHTML='';
+  document.getElementById('fecha').value=inputCol(colombiaNow());
+  sel.afect.clear();sel.lat=null;sel.lng=null;
+  document.getElementById('coord').textContent='Se toma de la sede seleccionada';
+  document.querySelectorAll('#afectaciones .opt').forEach(x=>x.classList.remove('on'));
+}
+
+function registrar(){
+  const r=construir();if(!r) return null;
+  datos.push(r);guardar();pintar();limpiar();
+  if(cfg.api){
+    fetch(cfg.api.replace(/\/$/,'')+'/reportes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(r)}).catch(()=>{});
+  }
+  return r;
+}
+
+/* ---------- Navegación ---------- */
+function abrir(p){
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('abierto'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
+  document.getElementById('filtros').style.display=p==='mapa'?'flex':'none';
+  document.getElementById('contador').style.display=p==='mapa'?'block':'none';
+  if(p!=='mapa'){
+    const el=document.getElementById('p-'+p);
+    el.classList.add('abierto');el.scrollTop=0;
+  }
+  if(p==='mapa') setTimeout(()=>mapa.invalidateSize(),260);
+}
+
+function toast(m){
+  const t=document.getElementById('toast');
+  t.textContent=m;t.classList.add('ver');
+  clearTimeout(t._x);t._x=setTimeout(()=>t.classList.remove('ver'),3000);
+}
+
+/* ---------- Arranque ---------- */
+cargar();
+iniciarMapa();
+pintarFiltros();
+pintarFormulario();
+pintar();
+traerNacional();
+traerApi();
+
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>abrir(b.dataset.p));
+
+document.getElementById('btn-guardar').onclick=()=>{if(registrar()){toast('Reporte guardado');abrir('mapa')}};
+
+document.getElementById('btn-whatsapp').onclick=()=>{
+  const r=registrar();if(!r) return;
+  const t=`*ALERTA CAMPUS COLOMBIA*%0A%0A`+
+    `*${encodeURIComponent(r.universidad)}*%0A${encodeURIComponent(r.sede)} — ${encodeURIComponent(r.ciudad)}%0A`+
+    `Fecha: ${encodeURIComponent(fmt(r.fecha))}%0A`+
+    `Hecho: ${encodeURIComponent(TIPOS[r.tipo])}%0AGravedad: ${encodeURIComponent(GRAVEDAD[r.gravedad])}%0A`+
+    (r.afectacion.length?`Afecta: ${encodeURIComponent(r.afectacion.join(', '))}%0A`:'')+
+    `%0A${encodeURIComponent(r.descripcion)}%0A%0A`+
+    `Reporte de hechos, no de personas.%0Ahttps://haroldco45.github.io/alerta-campus/`;
+  window.open('https://wa.me/?text='+t,'_blank');
+  toast('Reporte guardado');abrir('mapa');
+};
+
+document.getElementById('btn-exportar').onclick=()=>{
+  const mios=datos.filter(r=>r.origen==='local');
+  if(!mios.length){toast('No tienes reportes propios para exportar');return}
+  const b=new Blob([JSON.stringify(mios,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);
+  a.download=`alerta-campus-${inputCol(colombiaNow()).replace(/[:T]/g,'-')}.json`;
+  a.click();URL.revokeObjectURL(a.href);
+  toast(`${mios.length} reportes exportados`);
+};
+
+document.getElementById('btn-importar').onclick=()=>document.getElementById('file').click();
+document.getElementById('file').onchange=e=>{
+  const f=e.target.files[0];if(!f) return;
+  const fr=new FileReader();
+  fr.onload=()=>{
+    try{
+      const j=JSON.parse(fr.result);
+      if(!Array.isArray(j)) throw 0;
+      const ids=new Set(datos.map(x=>x.id));let n=0;
+      j.forEach(x=>{if(x&&x.id&&x.lat&&x.lng&&!ids.has(x.id)){x.origen='local';datos.push(x);n++}});
+      guardar();pintar();toast(`${n} reportes importados`);
+    }catch(err){toast('El archivo no tiene el formato esperado')}
+  };
+  fr.readAsText(f);e.target.value='';
+};
+
+document.getElementById('api').value=cfg.api||'';
+document.getElementById('btn-api').onclick=()=>{
+  cfg.api=document.getElementById('api').value.trim();guardarCfg();
+  toast(cfg.api?'Servidor guardado':'Modo local activado');traerApi();
+};
+
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e});
+document.getElementById('btn-instalar').onclick=async()=>{
+  if(!deferredPrompt){toast('Usa el menú del navegador → Agregar a pantalla de inicio');return}
+  deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;
+};
+
+document.getElementById('btn-legal').onclick=()=>document.getElementById('modal').classList.add('ver');
+document.getElementById('btn-acepto').onclick=()=>{
+  cfg.aceptado=true;guardarCfg();
+  document.getElementById('modal').classList.remove('ver');
+};
+if(!cfg.aceptado) document.getElementById('modal').classList.add('ver');
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
